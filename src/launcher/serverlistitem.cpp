@@ -34,7 +34,7 @@ CServerListItem::CServerListItem(const QString &name,
     , m_ClientVersion(clientVersion)
     , m_ClientPath(clientPath)
     , m_CrossUoPath(crossUoPath)
-    , m_ClientType(clientType)
+    , m_ClientType((char16_t)clientType)
     , m_Proxy(serverProxy)
     , m_Command("")
     , m_UseProxy(serveUseProxy)

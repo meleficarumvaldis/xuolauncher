@@ -275,7 +275,7 @@ void ManagerWindow::updateXUOAFeaturesCode()
     QString code;
     if (ui->rb_XUOAFeaturesSphere->isChecked())
     {
-        code.sprintf(
+        code = QString::asprintf(
             "//data for sendpacket\nB0FC W015 W0A001 D0%08X D0%08X D0%08X D0%08X",
             uint((featuresFlags >> 32) & 0xFFFFFFFF),
             uint(featuresFlags & 0xFFFFFFFF),
@@ -284,7 +284,7 @@ void ManagerWindow::updateXUOAFeaturesCode()
     }
     else if (ui->rb_XUOAFeaturesRunUO->isChecked())
     {
-        code.sprintf(
+        code = QString::asprintf(
             "public sealed class XUOAFeatures : Packet\n"
             "{\n"
             "public XUOAFeatures() : base(0xFC)\n"
@@ -304,7 +304,7 @@ void ManagerWindow::updateXUOAFeaturesCode()
     }
     else if (ui->rb_XUOAFeaturesPOL->isChecked())
     {
-        code.sprintf(
+        code = QString::asprintf(
             "program XUOAFeatures_sendpacket(who)\n"
             "var res := SendPacket(who, \"FC0015A001%08X%08X%08X%08X\");\n"
             "if (!res)\n"
@@ -354,11 +354,11 @@ void ManagerWindow::updateXuoFeaturesCode()
     QString code;
     if (ui->rb_XuoFeaturesSphere->isChecked())
     {
-        code.sprintf("//data for sendpacket\nB0FC W0009 W0032 D0%08X", featuresFlags);
+        code = QString::asprintf("//data for sendpacket\nB0FC W0009 W0032 D0%08X", featuresFlags);
     }
     else if (ui->rb_XuoFeaturesRunUO->isChecked())
     {
-        code.sprintf(
+        code = QString::asprintf(
             "public sealed class XUOAFeatures : Packet\n"
             "{\n"
             "public XUOAFeatures() : base(0xFC)\n"
@@ -372,7 +372,7 @@ void ManagerWindow::updateXuoFeaturesCode()
     }
     else if (ui->rb_XuoFeaturesPOL->isChecked())
     {
-        code.sprintf(
+        code = QString::asprintf(
             "program XUOAFeatures_sendpacket(who)\n"
             "var res := SendPacket(who, \"FC00090032%08X\");\n"
             "if (!res)\n"

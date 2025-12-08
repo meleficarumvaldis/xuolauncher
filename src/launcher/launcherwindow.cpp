@@ -612,23 +612,23 @@ void LauncherWindow::writeCfg() const
     if (file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
         QTextStream stream(&file);
-        stream << "AcctID=" << item->GetAccount() << endl;
+        stream << "AcctID=" << item->GetAccount() << Qt::endl;
         if (item->GetOptionSavePassword())
         {
-            stream << "AcctPassword=" << item->GetPassword() << endl;
-            stream << "RememberAcctPW=yes" << endl;
+            stream << "AcctPassword=" << item->GetPassword() << Qt::endl;
+            stream << "RememberAcctPW=yes" << Qt::endl;
         }
-        stream << "AutoLogin=" << (item->GetOptionFastLogin() ? "yes" : "no") << endl;
-        stream << "Crypt=" << (item->GetUseCrypt() ? "yes" : "no") << endl;
+        stream << "AutoLogin=" << (item->GetOptionFastLogin() ? "yes" : "no") << Qt::endl;
+        stream << "Crypt=" << (item->GetUseCrypt() ? "yes" : "no") << Qt::endl;
 
         if (!item->GetClientTypeString().isEmpty())
-            stream << "ClientType=" << item->GetClientTypeString() << endl;
-        stream << "ClientVersion=" << item->GetClientVersion() << endl;
-        stream << "CustomPath=" << item->GetClientPath() << endl;
+            stream << "ClientType=" << item->GetClientTypeString() << Qt::endl;
+        stream << "ClientVersion=" << item->GetClientVersion() << Qt::endl;
+        stream << "CustomPath=" << item->GetClientPath() << Qt::endl;
 
         if (!item->GetAddress().isEmpty())
         {
-            stream << "LoginServer=" << item->GetAddress() << endl;
+            stream << "LoginServer=" << item->GetAddress() << Qt::endl;
         }
     }
 }
@@ -746,7 +746,7 @@ void LauncherWindow::loadProxyList()
             if (reader.isStartElement())
             {
                 auto attributes = reader.attributes();
-                if (reader.name() == "proxylist")
+                if (reader.name().toString() == "proxylist")
                 {
                     if (attributes.hasAttribute("version"))
                         version = attributes.value("version").toInt();
@@ -754,7 +754,7 @@ void LauncherWindow::loadProxyList()
                     if (attributes.hasAttribute("size"))
                         count = attributes.value("size").toInt();
                 }
-                else if (reader.name() == "proxy")
+                else if (reader.name().toString() == "proxy")
                 {
                     if (attributes.hasAttribute("name"))
                     {
@@ -806,7 +806,7 @@ void LauncherWindow::loadServerList()
             if (reader.isStartElement())
             {
                 auto attributes = reader.attributes();
-                if (reader.name() == "serverlist")
+                if (reader.name().toString() == "serverlist")
                 {
                     if (attributes.hasAttribute("version"))
                         version = attributes.value("version").toInt();
@@ -840,7 +840,7 @@ void LauncherWindow::loadServerList()
                         ui->cb_Beta->setChecked(
                             rawStringToBool(attributes.value("beta").toString()));
                 }
-                else if (reader.name() == "clientpath")
+                else if (reader.name().toString() == "clientpath")
                 {
                     if (attributes.hasAttribute("path"))
                     {
@@ -862,7 +862,7 @@ void LauncherWindow::loadServerList()
                             ui->cb_XuoPath->addItem(path);
                     }
                 }
-                else if (reader.name() == "server")
+                else if (reader.name().toString() == "server")
                 {
                     if (attributes.hasAttribute("name"))
                     {
@@ -1040,8 +1040,7 @@ QString LauncherWindow::encodeArgumentString(const char *text, const int &length
     QString result;
     for (int i = 0; i < length; i++)
     {
-        QString buf;
-        buf.sprintf("%02X", text[i]);
+        QString buf = QString::asprintf("%02X", text[i]);
         result += buf;
     }
     return result;
@@ -1049,13 +1048,12 @@ QString LauncherWindow::encodeArgumentString(const char *text, const int &length
 
 void LauncherWindow::runProgram(const QString &exePath, const QStringList &args, const QString &directory)
 {
-    QProcess process;
     QDir::setCurrent(directory);
-    const auto success = process.startDetached(exePath, args, directory);
+    const auto success = QProcess::startDetached(exePath, args, directory);
     if (!success)
     {
-        QString err(QString("Could not launch application:\n" + exePath + "\nReason:\n"));
-        QMessageBox::critical(this, "Error", err + process.errorString());
+        QString err(QString("Could not launch application:\n" + exePath + "\n"));
+        QMessageBox::critical(this, "Error", err);
     }
 }
 
