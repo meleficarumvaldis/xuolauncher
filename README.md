@@ -54,6 +54,11 @@ Das Projekt verwendet ein `subdirs` Template, um beide Anwendungen gleichzeitig 
 
 Nach dem erfolgreichen Kompilieren finden Sie die ausführbaren Dateien in den Unterverzeichnissen `src/launcher/` und `src/manager/` innerhalb des Build-Verzeichnisses.
 
+Alternativ können Sie unter Linux das bereitgestellte Skript verwenden:
+```bash
+./build_linux.sh
+```
+
 ## Entwicklung
 
 ### Modulübersicht
