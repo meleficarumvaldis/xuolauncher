@@ -353,7 +353,7 @@ void UpdateManager::writeCache(const QString &path, QMap<QString, QString> cache
     QTextStream out(&file);
     for (auto e : cache.keys())
     {
-        out << e << "," << cache.value(e) << endl;
+        out << e << "," << cache.value(e) << Qt::endl;
     }
 }
 
