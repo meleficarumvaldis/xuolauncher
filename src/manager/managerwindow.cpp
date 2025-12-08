@@ -40,27 +40,11 @@ QString GetPlatformName()
     if (!distroName.isEmpty())
         return distroName;
 
-    QString distro;
-    distroName = "ubuntu";
-    QFile file("/etc/lsb-release");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        QTextStream in(&file);
-        while (!in.atEnd())
-        {
-           auto line = in.readLine().split("=");
-           if (line.count() == 2 && line[0] == "DISTRIB_ID")
-           {
-               distro = line[1];
-               distroName = line[1].toLower();
-               break;
-           }
-        }
-    }
+    distroName = QSysInfo::productType();
 
     if (distroName != "manjarolinux" && distroName != "ubuntu")
     {
-        QMessageBox::warning(nullptr, "Warning", QString("The %1 distribution is unsupported, you may find issues trying to use this binary").arg(distro));
+        QMessageBox::warning(nullptr, "Warning", QString("The %1 distribution is unsupported, you may find issues trying to use this binary").arg(distroName));
     }
 
     return distroName;
