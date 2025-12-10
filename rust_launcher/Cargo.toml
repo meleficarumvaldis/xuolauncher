@@ -1,0 +1,31 @@
+[package]
+name = "xuo_launcher_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# GUI Framework
+iced = { version = "0.13", features = ["tokio", "advanced", "image", "svg"] }
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP Client (Streaming support)
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+futures = "0.3" # For stream handling
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8" # For launcher.toml
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4" # For converting hash to string
+
+# System Integration
+directories = "5.0"
+open = "5.1" # Useful for opening links/folders
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2" # Might be needed for advanced permissions if std is not enough, but std::os::unix is usually fine.
