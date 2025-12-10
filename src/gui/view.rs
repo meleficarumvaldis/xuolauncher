@@ -9,19 +9,12 @@ use crate::gui::theme;
 
 pub fn view(app: &LauncherApp) -> Element<'_, Message> {
     let content = match &app.state {
-        AppState::Initializing => text("Loading...").color(theme::TEXT_BRIGHT).into(),
+        AppState::Initializing => text("Lade...").color(theme::TEXT_BRIGHT).into(),
         AppState::Installer(state) => view_installer(state),
         AppState::Patcher(state) => view_patcher(state),
-        AppState::Ready => {
-            column![
-                text("Ready to Play!").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
-                button(text("Launch Game").color(theme::BACKGROUND))
-                    .style(style::primary_button_style)
-                    .on_press(Message::LaunchGame)
-            ].spacing(theme::SPACING_DEFAULT).into()
-        }
-        AppState::Launching => text("Launching...").color(theme::TEXT_BRIGHT).into(),
-        AppState::Error(e) => text(format!("Error: {}", e)).color(theme::ACCENT_PRIMARY).into(),
+        AppState::ReadyToPlay => crate::gui::screens::dashboard::view(),
+        AppState::Launching => text("Spiel startet...").color(theme::TEXT_BRIGHT).into(),
+        AppState::Error(e) => text(format!("Fehler: {}", e)).color(theme::ACCENT_PRIMARY).into(),
     };
 
     container(content)
@@ -37,21 +30,21 @@ fn view_installer(state: &InstallerState) -> Element<'_, Message> {
     match state {
         InstallerState::Welcome => {
             column![
-                text("Welcome to MyShard Launcher").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
-                text(format!("Default Install Path: {:?}", installer::get_default_install_path())).color(theme::TEXT_BRIGHT),
+                text("Willkommen beim MyShard Launcher").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
+                text(format!("Installationspfad: {:?}", installer::get_default_install_path())).color(theme::TEXT_BRIGHT),
                 // In real UI, a text input and "Browse" button would be here.
                 // For now, a button to accept default.
-                button(text("Next").color(theme::BACKGROUND))
+                button(text("Weiter").color(theme::BACKGROUND))
                     .style(style::primary_button_style)
                     .on_press(Message::PathSelected(installer::get_default_install_path().to_string_lossy().to_string()))
             ].spacing(theme::SPACING_DEFAULT).into()
         }
         InstallerState::Rules => {
                 column![
-                text("Server Rules").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
+                text("Server Regeln").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
                 container(
                     scrollable(
-                        text("1. Be nice.\n2. No cheating.\n3. Have fun.\n\n(Scroll for more...)")
+                        text("1. Seid nett.\n2. Kein Cheaten.\n3. Habt Spaß.\n\n(Scroll für mehr...)")
                         .color(theme::TEXT_BRIGHT)
                     ).height(200)
                 ).style(|_| container::Style {
@@ -63,27 +56,15 @@ fn view_installer(state: &InstallerState) -> Element<'_, Message> {
                     },
                     ..Default::default()
                 }).padding(10),
-                button(text("I Accept").color(theme::BACKGROUND))
+                button(text("Akzeptieren").color(theme::BACKGROUND))
                     .style(style::primary_button_style)
                     .on_press(Message::RulesAccepted)
             ].spacing(theme::SPACING_DEFAULT).into()
         }
-        InstallerState::Setup => text("Setting up directories...").color(theme::TEXT_BRIGHT).into(),
+        InstallerState::Setup => text("Verzeichnisse werden erstellt...").color(theme::TEXT_BRIGHT).into(),
     }
 }
 
 fn view_patcher(state: &PatcherState) -> Element<'_, Message> {
-    column![
-        text("Patching...").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
-        progress_bar(0.0..=1.0, state.progress).style(|_| progress_bar::Style {
-            background: theme::SURFACE.into(),
-            bar: theme::ACCENT_SECONDARY.into(),
-            border: Border {
-                radius: theme::BORDER_RADIUS.into(),
-                width: 0.0,
-                color: iced::Color::TRANSPARENT,
-            },
-        }),
-        text(state.current_file.clone()).color(theme::TEXT_MUTED)
-    ].spacing(theme::SPACING_DEFAULT).into()
+    crate::gui::screens::patcher::view(state)
 }

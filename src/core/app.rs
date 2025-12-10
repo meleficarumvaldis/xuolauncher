@@ -3,7 +3,7 @@ use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep};
 use crate::core::config::LauncherConfig;
 use crate::core::message::Message;
 use crate::core::manifest::{Manifest, Asset, AssetSource};
-use crate::core::{installer, launch, verifier};
+use crate::core::{installer, launcher, verifier};
 use crate::net::downloader;
 
 pub struct LauncherApp {
@@ -137,7 +137,7 @@ impl LauncherApp {
                  }
             }
             Message::PatchComplete => {
-                self.state = AppState::Ready;
+                self.state = AppState::ReadyToPlay;
             }
             Message::PatchError(e) => {
                 self.state = AppState::Error(e);
@@ -148,13 +148,19 @@ impl LauncherApp {
             }
 
             // Launch
-            Message::LaunchGame => {
-                if let AppState::Ready = self.state {
+            Message::PlayClicked => {
+                if let AppState::ReadyToPlay = self.state {
                     self.state = AppState::Launching;
                     let config_clone = self.config.clone();
+                    // launch_game is synchronous now as per implementation (using std::process).
+                    // We should run it in a blocking task to avoid freezing UI, although Command::spawn is fast.
+                    // inject_settings is also sync.
                     return Task::perform(async move {
-                         launch::inject_settings(&config_clone).await?;
-                         launch::launch_game(&config_clone).await
+                         // Wrap in spawn_blocking if operations take time, but for spawn it's usually fine.
+                         // However, to be safe and strictly follow async patterns:
+                         tokio::task::spawn_blocking(move || {
+                             launcher::launch_game(&config_clone)
+                         }).await.map_err(|e| e.to_string())?
                     }, |res| Message::GameLaunched(res));
                 }
             }
@@ -162,7 +168,7 @@ impl LauncherApp {
                 self.state = AppState::Error(e);
             }
             Message::GameLaunched(Ok(_)) => {
-                self.state = AppState::Ready;
+                self.state = AppState::ReadyToPlay;
             }
             // ... handle other messages
             _ => {}
@@ -203,17 +209,7 @@ impl LauncherApp {
     }
 
     pub fn view(&self) -> iced::Element<Message> {
-        match &self.state {
-             AppState::Initializing => iced::widget::text("Initializing...").into(),
-             AppState::Installer(_) => iced::widget::text("Installer Placeholder").into(),
-             AppState::Patcher(state) => crate::gui::screens::patcher::view(state),
-             AppState::Ready => iced::widget::button("Play").on_press(Message::LaunchGame).into(),
-             AppState::Launching => iced::widget::text("Launching...").into(),
-             AppState::Error(e) => iced::widget::column![
-                 iced::widget::text(format!("Error: {}", e)),
-                 iced::widget::button("Retry").on_press(Message::RetryPatch)
-             ].into(),
-        }
+        crate::gui::view::view(self)
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {

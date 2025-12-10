@@ -6,7 +6,7 @@ pub enum AppState {
     Initializing,
     Installer(InstallerState),
     Patcher(PatcherState),
-    Ready,
+    ReadyToPlay,
     Launching,
     Error(String),
 }
