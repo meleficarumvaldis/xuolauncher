@@ -1,15 +1,20 @@
+use crate::core::manifest::{Asset, Manifest};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AppState {
-    #[default]
     Initializing,
     Installer(InstallerState),
     Patcher(PatcherState),
     Ready,
     Launching,
     Error(String),
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::Initializing
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,27 +30,34 @@ pub struct PatcherState {
     pub current_file: String,
     pub total_files: usize,
     pub processed_files: usize,
+    pub state: PatcherStep,
+    pub download_speed: String,
+    pub files_remaining: usize,
+    pub assets_to_download: Vec<Asset>,
+    // Helpers for speed calculation
+    pub total_bytes_to_download: u64,
+    pub total_bytes_downloaded: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub enum AssetSource {
-    Base,     // Official EA Assets
-    Override, // Custom Shard Assets
-    Engine,   // ClassicUO Binaries
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PatcherStep {
+    Checking,
+    Downloading,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Asset {
-    pub name: String,
-    pub source: AssetSource,
-    pub remote_url: String,
-    pub hash_sha256: String,
-    pub size_bytes: u64,
-    pub relative_path: PathBuf,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Manifest {
-    pub version: String,
-    pub assets: Vec<Asset>,
+impl Default for PatcherState {
+    fn default() -> Self {
+        Self {
+            progress: 0.0,
+            current_file: String::new(),
+            total_files: 0,
+            processed_files: 0,
+            state: PatcherStep::Checking,
+            download_speed: String::from("0 KB/s"),
+            files_remaining: 0,
+            assets_to_download: Vec::new(),
+            total_bytes_to_download: 0,
+            total_bytes_downloaded: 0,
+        }
+    }
 }
