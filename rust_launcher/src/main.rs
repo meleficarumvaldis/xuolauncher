@@ -1,18 +1,12 @@
-mod app;
-mod data {
-    pub mod config;
-    pub mod model;
-}
-mod logic {
-    pub mod installer;
-    pub mod launch;
-}
-mod message;
+mod core;
+mod gui;
+mod net;
 
 use iced::application;
-use crate::app::LauncherApp;
+use crate::core::app::LauncherApp;
+use crate::gui::view;
 
 pub fn main() -> iced::Result {
-    application(LauncherApp::title, LauncherApp::update, LauncherApp::view)
+    application(LauncherApp::title, LauncherApp::update, view::view)
         .run_with(LauncherApp::new)
 }

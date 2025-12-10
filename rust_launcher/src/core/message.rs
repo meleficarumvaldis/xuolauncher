@@ -1,5 +1,5 @@
-use crate::data::config::LauncherConfig;
-use crate::data::model::Manifest;
+use crate::core::config::LauncherConfig;
+use crate::core::state::Manifest;
 
 #[derive(Debug, Clone)]
 pub enum Message {

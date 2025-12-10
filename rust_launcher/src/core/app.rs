@@ -1,14 +1,12 @@
-use iced::widget::{button, column, container, progress_bar, text, scrollable};
-use iced::{Element, Length, Task};
-use crate::data::model::{AppState, InstallerState, PatcherState};
-use crate::data::config::LauncherConfig;
-use crate::message::Message;
-use crate::logic::{installer, launch};
+use iced::{Task};
+use crate::core::state::{AppState, InstallerState, PatcherState};
+use crate::core::config::LauncherConfig;
+use crate::core::message::Message;
+use crate::core::{installer, launch};
 
 pub struct LauncherApp {
-    state: AppState,
-    config: LauncherConfig,
-    // Add other fields like manifest, current download info, etc.
+    pub state: AppState,
+    pub config: LauncherConfig,
 }
 
 impl Default for LauncherApp {
@@ -24,8 +22,13 @@ impl LauncherApp {
     pub fn new() -> (Self, Task<Message>) {
         let app = Self::default();
         // Start by loading config or checking first run
-        (app, Task::perform(async {}, |_| Message::Loaded(Ok(LauncherConfig::default()))))
-        // In real app, we would read the config file here
+        (app, Task::perform(async {
+            let path = installer::get_default_install_path();
+            match LauncherConfig::load_from_path(&path) {
+                Ok(config) => Message::Loaded(Ok(config)),
+                Err(_) => Message::Loaded(Err("Config not found".to_string())),
+            }
+        }, |msg| msg))
     }
 
     pub fn title(&self) -> String {
@@ -53,6 +56,8 @@ impl LauncherApp {
             Message::Loaded(Err(_)) => {
                  // Assume first run if load failed (file missing)
                  self.state = AppState::Installer(InstallerState::Welcome);
+                 // Initialize config with default path so we have something to work with
+                 self.config.install_path = installer::get_default_install_path();
             }
             Message::PathSelected(path_str) => {
                 self.config.install_path = std::path::PathBuf::from(path_str);
@@ -61,6 +66,8 @@ impl LauncherApp {
             Message::RulesAccepted => {
                 // Rules accepted, proceed to setup
                 let path = self.config.install_path.clone();
+                // Transition state to indicate work is happening
+                self.state = AppState::Installer(InstallerState::Setup);
                 return Task::perform(installer::run_first_setup(path), |res| {
                     match res {
                         Ok(_) => Message::InstallComplete(Ok(())),
@@ -102,60 +109,5 @@ impl LauncherApp {
             _ => {}
         }
         Task::none()
-    }
-
-    pub fn view(&self) -> Element<Message> {
-        let content = match &self.state {
-            AppState::Initializing => text("Loading...").into(),
-            AppState::Installer(state) => self.view_installer(state),
-            AppState::Patcher(state) => self.view_patcher(state),
-            AppState::Ready => {
-                column![
-                    text("Ready to Play!"),
-                    button("Launch Game").on_press(Message::LaunchGame)
-                ].into()
-            }
-            AppState::Launching => text("Launching...").into(),
-            AppState::Error(e) => text(format!("Error: {}", e)).into(),
-        };
-
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into()
-    }
-
-    fn view_installer(&self, state: &InstallerState) -> Element<Message> {
-        match state {
-            InstallerState::Welcome => {
-                column![
-                    text("Welcome to MyShard Launcher"),
-                    text(format!("Default Install Path: {:?}", installer::get_default_install_path())),
-                    // In real UI, a text input and "Browse" button would be here.
-                    // For now, a button to accept default.
-                    button("Next").on_press(Message::PathSelected(installer::get_default_install_path().to_string_lossy().to_string()))
-                ].spacing(20).into()
-            }
-            InstallerState::Rules => {
-                 column![
-                    text("Server Rules"),
-                    scrollable(
-                        text("1. Be nice.\n2. No cheating.\n3. Have fun.\n\n(Scroll for more...)")
-                    ).height(200),
-                    button("I Accept").on_press(Message::RulesAccepted)
-                ].spacing(20).into()
-            }
-            InstallerState::Setup => text("Setting up...").into(),
-        }
-    }
-
-    fn view_patcher(&self, state: &PatcherState) -> Element<Message> {
-        column![
-            text("Patching..."),
-            progress_bar(0.0..=1.0, state.progress),
-            text(state.current_file.clone())
-        ].spacing(20).into()
     }
 }
