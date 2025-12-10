@@ -28,7 +28,7 @@ pub enum Message {
     RetryPatch,
 
     // Launch
-    LaunchGame,
+    PlayClicked,
     GameLaunched(Result<(), String>),
 
     // General

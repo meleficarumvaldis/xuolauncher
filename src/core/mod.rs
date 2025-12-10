@@ -1,7 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod installer;
-pub mod launch;
+pub mod launcher;
 pub mod manifest;
 pub mod message;
 pub mod state;
