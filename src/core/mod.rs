@@ -4,6 +4,7 @@ pub mod installer;
 pub mod launcher;
 pub mod manifest;
 pub mod message;
+pub mod self_update;
 pub mod state;
 pub mod verifier;
 
