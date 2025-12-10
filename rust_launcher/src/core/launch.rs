@@ -1,6 +1,6 @@
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
-use crate::data::config::LauncherConfig;
+use crate::core::config::LauncherConfig;
 
 #[cfg(target_os = "windows")]
 const ENGINE_EXECUTABLE_NAME: &str = "ClassicUO.exe";
