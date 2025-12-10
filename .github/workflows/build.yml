@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -30,7 +30,7 @@ jobs:
         sudo apt-get install -y libssl-dev pkg-config libfreetype6-dev libfontconfig1-dev libxcb1-dev
 
     - name: Cache Cargo Registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -48,21 +48,21 @@ jobs:
 
     - name: Upload Artifact (Windows)
       if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: launcher-windows
         path: target/release/*.exe
 
     - name: Upload Artifact (Linux)
       if: runner.os == 'Linux'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: launcher-linux
         path: target/release/xuo_launcher_rs
 
     - name: Upload Artifact (macOS)
       if: runner.os == 'macOS'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: launcher-macos
         path: target/release/xuo_launcher_rs
