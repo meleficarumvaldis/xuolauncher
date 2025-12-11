@@ -88,23 +88,9 @@ impl LauncherApp {
                 if let AppState::Installer(InstallerState::Options(ref mut opts)) = self.state {
                     opts.checking_update = true;
                 }
-                // NOTE: Replace with actual version URL
-                let version_url = "https://alte-schattenwelt.de/launcher/version.json".to_string();
+                // Self update deactivated for testing
                 return Task::perform(async move {
-                    let client = reqwest::Client::new();
-                    match client.get(&version_url).send().await {
-                        Ok(resp) => {
-                            if resp.status().is_success() {
-                                match resp.json::<RemoteVersion>().await {
-                                    Ok(remote) => Ok(Some(remote.version)), // Return version string
-                                    Err(e) => Err(format!("Parse error: {}", e))
-                                }
-                            } else {
-                                Err(format!("Status: {}", resp.status()))
-                            }
-                        },
-                        Err(e) => Err(e.to_string())
-                    }
+                    Ok(None)
                 }, Message::UpdateChecked);
             }
             Message::UpdateChecked(result) => {
@@ -126,15 +112,8 @@ impl LauncherApp {
                 }
             }
             Message::PerformUpdate => {
-                 let version_url = "https://alte-schattenwelt.de/launcher/version.json".to_string();
-                 return Task::perform(async move {
-                      // This function exits the process on success, so we might not get a result back if successful.
-                      // But if it fails, we get an error.
-                      self_update::check_and_apply_self_update(&version_url).await
-                 }, |res| match res {
-                     Ok(_) => Message::Tick, // Should not happen if exit(0) called
-                     Err(e) => Message::ErrorOccurred(e),
-                 });
+                 // Self update deactivated for testing
+                 return Task::none();
             }
             Message::InstallStarted => {
                 let path = self.config.install_path.clone();
