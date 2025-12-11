@@ -30,7 +30,7 @@ fn view_installer(state: &InstallerState) -> Element<'_, Message> {
     match state {
         InstallerState::Welcome => {
             column![
-                text("Willkommen beim MyShard Launcher").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
+                text("Willkommen beim Launcher der alten Schattenwelt").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
                 text(format!("Installationspfad: {:?}", installer::get_default_install_path())).color(theme::TEXT_BRIGHT),
                 // In real UI, a text input and "Browse" button would be here.
                 // For now, a button to accept default.
@@ -44,7 +44,7 @@ fn view_installer(state: &InstallerState) -> Element<'_, Message> {
                 text("Server Regeln").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
                 container(
                     scrollable(
-                        text("1. Seid nett.\n2. Kein Cheaten.\n3. Habt Spaß.\n\n(Scroll für mehr...)")
+                        text("1. Seid nett.\n2. Kein Adel.\n3. Habt Spaß.\n\n(Scroll für mehr...)")
                         .color(theme::TEXT_BRIGHT)
                     ).height(200)
                 ).style(|_| container::Style {

@@ -19,9 +19,9 @@ pub fn view() -> Element<'static, Message> {
         column![
             text("Neuigkeiten").size(theme::FONT_SIZE_HEADER).color(theme::ACCENT_PRIMARY),
             vertical_space().height(theme::SPACING_SMALL),
-            text("Willkommen auf dem Shard! Das neueste Update beinhaltet...").color(theme::TEXT_BRIGHT),
-            text("- Neue Dungeons").color(theme::TEXT_MUTED),
-            text("- PvP Balance").color(theme::TEXT_MUTED),
+            text("Willkommen auf der alten Schattenwelt Das neueste Update beinhaltet...").color(theme::TEXT_BRIGHT),
+            text("- einen Keks").color(theme::TEXT_MUTED),
+            text("- einem Nikolaus aus Schoki").color(theme::TEXT_MUTED),
         ]
         .spacing(theme::SPACING_SMALL)
     )
