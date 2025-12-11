@@ -10,40 +10,24 @@ pub enum AppState {
     Error(String),
 }
 
-impl Default for AppState {
-    fn default() -> Self {
-        Self::Initializing
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstallerState {
     Welcome,
     DefinePath,
-    Options(OptionsState), // Modified: Options screen with state
-    Setup, // Performing directory creation
+    Options(OptionsState),
+    Setup,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OptionsState {
     pub checking_update: bool,
     pub update_available: bool,
     pub new_version: Option<String>,
 }
 
-impl Default for OptionsState {
-    fn default() -> Self {
-        Self {
-            checking_update: false,
-            update_available: false,
-            new_version: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct PatcherState {
-    pub progress: f32, // 0.0 to 1.0
+    pub progress: f32,
     pub current_file: String,
     pub total_files: usize,
     pub processed_files: usize,
@@ -51,7 +35,9 @@ pub struct PatcherState {
     pub download_speed: String,
     pub files_remaining: usize,
     pub assets_to_download: Vec<Asset>,
-    // Helpers for speed calculation
+    pub status_text: String,
+    
+    // Wieder hinzugefügt für Progress-Tracking
     pub total_bytes_to_download: u64,
     pub total_bytes_downloaded: u64,
 }
@@ -73,6 +59,7 @@ impl Default for PatcherState {
             download_speed: String::from("0 KB/s"),
             files_remaining: 0,
             assets_to_download: Vec::new(),
+            status_text: String::from("Initialisiere..."),
             total_bytes_to_download: 0,
             total_bytes_downloaded: 0,
         }

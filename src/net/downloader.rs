@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-/// Downloads a list of assets in parallel.
-/// Returns a Stream of Messages (Progress updates, completion).
 pub fn download_assets(
     assets: Vec<Asset>,
     base_path: PathBuf,
@@ -15,8 +13,6 @@ pub fn download_assets(
 
     tokio::spawn(async move {
         let tx = tx;
-
-        // Use a stream of futures for parallelism
         let mut stream = futures::stream::iter(assets)
             .map(|asset| {
                 let base = base_path.clone();
@@ -30,7 +26,7 @@ pub fn download_assets(
                     }
                 }
             })
-            .buffer_unordered(3); // 3 concurrent downloads
+            .buffer_unordered(3);
 
         while let Some(result) = stream.next().await {
              match result {
@@ -41,7 +37,7 @@ pub fn download_assets(
                  }
                  Err(e) => {
                      let mut tx = tx.clone();
-
+                     use futures::SinkExt;
                      let _ = tx.start_send(Message::PatchError(format!("Download failed: {}", e)));
                      return;
                  }
@@ -61,8 +57,6 @@ async fn download_single_file(
     path: PathBuf,
     tx: &mut futures::channel::mpsc::Sender<Message>,
 ) -> Result<u64, String> {
-    use futures::SinkExt;
-
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
     }
@@ -78,7 +72,6 @@ async fn download_single_file(
     let mut stream = res.bytes_stream();
     let mut file = File::create(&path).await.map_err(|e| e.to_string())?;
     let mut downloaded: u64 = 0;
-
     let mut last_update = std::time::Instant::now();
 
     while let Some(item) = stream.next().await {
@@ -87,6 +80,7 @@ async fn download_single_file(
         downloaded += chunk.len() as u64;
 
         if last_update.elapsed().as_millis() > 50 {
+             use futures::SinkExt;
              let _ = tx.feed(Message::DownloadProgress {
                 file: asset.path.clone(),
                 downloaded,
@@ -95,9 +89,7 @@ async fn download_single_file(
             last_update = std::time::Instant::now();
         }
     }
-
-    // Ensure flush happens
+    // Flush to ensure last progress is sent or just continue
     let _ = tx.flush().await;
-
     Ok(downloaded)
 }

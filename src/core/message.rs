@@ -7,28 +7,26 @@ pub enum Message {
     Loaded(Result<LauncherConfig, String>),
 
     // Installer Interactions
-    InstallerNextStep, // Moves to next step
+    InstallerNextStep,
     PathSelected(String),
-    RulesAccepted,
-    InstallStarted,
+    InstallStarted, // Startet jetzt direkt nach der Pfadwahl
     InstallComplete(Result<(), String>),
 
-    // Options
+    // Options (werden im vereinfachten Flow ggf. übersprungen, bleiben aber im Code)
     CheckForUpdates,
-    UpdateChecked(Result<Option<String>, String>), // Ok(Some(version)) if update available
+    UpdateChecked(Result<Option<String>, String>),
     PerformUpdate,
 
-    // Patcher
+    // Patcher Flow (Schritt-für-Schritt)
+    LauncherInstalled(Result<(), String>), // NEW: Rückmeldung nach Schritt 1
     ManifestFetched(Result<Manifest, String>),
     VerificationComplete(Vec<Asset>),
-    FileChecked(String),
-    /// Current downloaded bytes, Total bytes for current file (or overall?), Overall progress 0.0-1.0
     DownloadProgress {
         file: String,
         downloaded: u64,
-        total: u64, // Total for this file
+        total: u64,
     },
-    FileDownloaded(Asset), // Added for tracking completed files
+    FileDownloaded(Asset),
     PatchComplete,
     PatchError(String),
     RetryPatch,

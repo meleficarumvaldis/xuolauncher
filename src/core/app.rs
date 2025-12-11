@@ -1,23 +1,14 @@
-use iced::{Task};
-use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep, OptionsState};
+use iced::Task;
+use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep};
 use crate::core::config::LauncherConfig;
 use crate::core::message::Message;
 use crate::core::manifest::{Manifest, Asset, AssetSource};
-use crate::core::{installer, launcher, verifier, launcher_installer, self_update};
+use crate::core::{installer, launcher, verifier, launcher_installer};
 use crate::net::downloader;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-struct RemoteManifestItem {
-    file: String,
-    hash: String,
-}
-
-#[derive(Deserialize)]
-struct RemoteVersion {
-    version: String,
-    url: String,
-}
+struct RemoteManifestItem { file: String, hash: String }
 
 pub struct LauncherApp {
     pub state: AppState,
@@ -26,17 +17,13 @@ pub struct LauncherApp {
 
 impl Default for LauncherApp {
     fn default() -> Self {
-        Self {
-            state: AppState::Initializing,
-            config: LauncherConfig::default(),
-        }
+        Self { state: AppState::Initializing, config: LauncherConfig::default() }
     }
 }
 
 impl LauncherApp {
     pub fn new() -> (Self, Task<Message>) {
         let app = Self::default();
-        // Start by loading config or checking first run
         (app, Task::perform(async {
             let path = installer::get_default_install_path();
             match LauncherConfig::load_from_path(&path) {
@@ -46,74 +33,31 @@ impl LauncherApp {
         }, |msg| msg))
     }
 
-    pub fn title(&self) -> String {
-        String::from("XUO Launcher (Rust)")
-    }
+    pub fn title(&self) -> String { String::from("XUO Launcher") }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Loaded(Ok(config)) => {
-                // Check if setup is completed
                 if !config.setup_completed {
                      self.state = AppState::Installer(InstallerState::Welcome);
                      self.config = config;
                 } else {
-                     self.state = AppState::Patcher(PatcherState::default());
+                     self.state = AppState::ReadyToPlay;
                      self.config = config;
-                     return self.start_patching();
                 }
             }
             Message::Loaded(Err(_)) => {
                  self.state = AppState::Installer(InstallerState::Welcome);
                  self.config.install_path = installer::get_default_install_path();
             }
-            // --- Installer Flow ---
+
             Message::InstallerNextStep => {
-                match &self.state {
-                    AppState::Installer(InstallerState::Welcome) => {
-                        self.state = AppState::Installer(InstallerState::DefinePath);
-                    }
-                    AppState::Installer(InstallerState::DefinePath) => {
-                         // Default Options state
-                        self.state = AppState::Installer(InstallerState::Options(OptionsState::default()));
-                    }
-                     // Options -> InstallStarted handled below
-                    _ => {}
+                if let AppState::Installer(InstallerState::Welcome) = &self.state {
+                    self.state = AppState::Installer(InstallerState::DefinePath);
                 }
             }
             Message::PathSelected(path_str) => {
                 self.config.install_path = std::path::PathBuf::from(path_str);
-            }
-            Message::CheckForUpdates => {
-                if let AppState::Installer(InstallerState::Options(ref mut opts)) = self.state {
-                    opts.checking_update = true;
-                }
-                // Self update deactivated for testing
-                return Task::perform(async move {
-                    Ok(None)
-                }, Message::UpdateChecked);
-            }
-            Message::UpdateChecked(result) => {
-                 if let AppState::Installer(InstallerState::Options(ref mut opts)) = self.state {
-                    opts.checking_update = false;
-                    match result {
-                        Ok(Some(version)) => {
-                             let current = env!("CARGO_PKG_VERSION");
-                             if version != current { // Simple string comparison or semver
-                                 opts.update_available = true;
-                                 opts.new_version = Some(version);
-                             } else {
-                                 opts.update_available = false;
-                             }
-                        }
-                        Ok(None) => opts.update_available = false,
-                        Err(_) => opts.update_available = false, // Ignore errors for UI simplicity or handle them
-                    }
-                }
-            }
-            Message::PerformUpdate => {
-                 // Self update deactivated for testing
-                 return Task::none();
             }
             Message::InstallStarted => {
                 let path = self.config.install_path.clone();
@@ -127,168 +71,95 @@ impl LauncherApp {
             }
             Message::InstallComplete(Ok(_)) => {
                 self.config.setup_completed = true;
-                 // Save config
                 let _ = self.config.save_to_path(&installer::get_default_install_path());
+                self.state = AppState::ReadyToPlay;
+            }
+            Message::InstallComplete(Err(e)) => { self.state = AppState::Error(e); }
 
+            Message::PlayClicked => {
                 self.state = AppState::Patcher(PatcherState::default());
-                return self.start_patching();
+                return self.step_check_launcher();
             }
-            Message::InstallComplete(Err(e)) => {
-                self.state = AppState::Error(e);
+            Message::LauncherInstalled(Ok(_)) => {
+                if let AppState::Patcher(ref mut p) = self.state {
+                    p.status_text = "Lade Manifest...".to_string();
+                }
+                return self.step_fetch_manifest();
             }
-
-            // --- Patcher Messages ---
+            Message::LauncherInstalled(Err(e)) => { self.state = AppState::Error(e); }
             Message::ManifestFetched(Ok(manifest)) => {
-                if let AppState::Patcher(ref mut p_state) = self.state {
-                    p_state.state = PatcherStep::Checking;
+                if let AppState::Patcher(ref mut p) = self.state {
+                    p.status_text = "Verifiziere Dateien...".to_string();
+                    p.state = PatcherStep::Checking;
                 }
                 let install_path = self.config.install_path.clone();
                 return Task::perform(async move {
                     verifier::verify_files(&install_path, &manifest).await
                 }, Message::VerificationComplete);
             }
-            Message::ManifestFetched(Err(e)) => {
-                self.state = AppState::Error(format!("Failed to fetch manifest: {}", e));
-            }
-            Message::VerificationComplete(missing_assets) => {
-                if missing_assets.is_empty() {
-                    return Task::done(Message::PatchComplete);
-                } else {
-                    if let AppState::Patcher(ref mut p_state) = self.state {
-                        p_state.state = PatcherStep::Downloading;
-                        p_state.total_files = missing_assets.len();
-                        p_state.processed_files = 0;
-                        p_state.assets_to_download = missing_assets;
-
-                        // Calculate total bytes
-                        p_state.total_bytes_to_download = p_state.assets_to_download.iter().map(|a| a.size).sum();
-                        p_state.total_bytes_downloaded = 0;
-                    }
-                }
-            }
-            Message::DownloadProgress { file, downloaded, total } => {
-                if let AppState::Patcher(ref mut p_state) = self.state {
-                    p_state.current_file = file;
-                    // We need a way to track cumulative progress.
-                    // This simple update doesn't account for other files' downloaded bytes effectively unless we track per-file state map.
-                    // For now, let's approximate or just rely on file completion for big jumps, and use this for current file activity.
-                    // Or, we could just ignore `total` here and rely on `downloaded` delta if we had previous value.
-
-                    // Ideally `p_state.total_bytes_downloaded` should update.
-                    // Since we don't track per-file state in PatcherState easily (would need a HashMap),
-                    // we will just show "Downloading: File X" and maybe overall progress based on `processed_files / total_files`.
-
-                    // Refinement: use `processed_files` count for the main progress bar for stability.
-                    if p_state.total_files > 0 {
-                         let base_progress = p_state.processed_files as f32 / p_state.total_files as f32;
-                         let file_progress = if total > 0 { downloaded as f32 / total as f32 } else { 0.0 };
-                         // Add a fraction of 1/total_files based on current file progress
-                         p_state.progress = base_progress + (file_progress / p_state.total_files as f32);
-                    }
-
-                    p_state.download_speed = "Calculating...".to_string(); // Todo: real speed calc requires time tracking
+            Message::VerificationComplete(missing) => {
+                if missing.is_empty() { return Task::done(Message::PatchComplete); }
+                if let AppState::Patcher(ref mut p) = self.state {
+                    p.state = PatcherStep::Downloading;
+                    p.total_files = missing.len();
+                    p.processed_files = 0;
+                    p.assets_to_download = missing;
                 }
             }
             Message::FileDownloaded(asset) => {
-                 if let AppState::Patcher(ref mut p_state) = self.state {
-                     p_state.processed_files += 1;
-                     p_state.files_remaining = p_state.total_files.saturating_sub(p_state.processed_files);
-                     p_state.total_bytes_downloaded += asset.size;
+                 if let AppState::Patcher(ref mut p) = self.state {
+                     p.processed_files += 1;
+                     p.files_remaining = p.total_files.saturating_sub(p.processed_files);
+                     p.total_bytes_downloaded += asset.size;
+                     if p.total_files > 0 { p.progress = p.processed_files as f32 / p.total_files as f32; }
                  }
             }
             Message::PatchComplete => {
-                self.state = AppState::ReadyToPlay;
+                self.state = AppState::Launching;
+                let c = self.config.clone();
+                return Task::perform(async move {
+                     tokio::task::spawn_blocking(move || launcher::launch_game(&c)).await.map_err(|e| e.to_string())?
+                }, |r| Message::GameLaunched(r));
             }
-            Message::PatchError(e) => {
-                self.state = AppState::Error(e);
-            }
-            Message::RetryPatch => {
-                self.state = AppState::Patcher(PatcherState::default());
-                return self.start_patching();
-            }
-
-            // Launch
-            Message::PlayClicked => {
-                if let AppState::ReadyToPlay = self.state {
-                    self.state = AppState::Launching;
-                    let config_clone = self.config.clone();
-                    // launch_game is synchronous now as per implementation (using std::process).
-                    // We should run it in a blocking task to avoid freezing UI, although Command::spawn is fast.
-                    // inject_settings is also sync.
-                    return Task::perform(async move {
-                         // Wrap in spawn_blocking if operations take time, but for spawn it's usually fine.
-                         // However, to be safe and strictly follow async patterns:
-                         tokio::task::spawn_blocking(move || {
-                             launcher::launch_game(&config_clone)
-                         }).await.map_err(|e| e.to_string())?
-                    }, |res| Message::GameLaunched(res));
-                }
-            }
-            Message::GameLaunched(Err(e)) => {
-                self.state = AppState::Error(e);
-            }
-            Message::GameLaunched(Ok(_)) => {
-                self.state = AppState::ReadyToPlay;
-            }
-            Message::OpenLink(url) => {
-                 let _ = open::that(url);
-            }
-            // ... handle other messages
+            Message::GameLaunched(Ok(_)) => { self.state = AppState::ReadyToPlay; }
+            Message::GameLaunched(Err(e)) => { self.state = AppState::Error(e); }
+            Message::OpenLink(url) => { let _ = open::that(url); }
             _ => {}
         }
         Task::none()
     }
 
-    fn start_patching(&self) -> Task<Message> {
-         let install_path = self.config.install_path.clone();
-         Task::perform(async move {
-             // 1. Install ClassicUO Launcher if missing
-             if let Err(e) = launcher_installer::install_classicuo_launcher(&install_path).await {
-                 return Err(format!("ClassicUO Launcher Install Failed: {}", e));
-             }
+    fn step_check_launcher(&mut self) -> Task<Message> {
+        if let AppState::Patcher(ref mut p) = self.state {
+            p.status_text = "Prüfe Launcher...".to_string();
+        }
+        let install_path = self.config.install_path.clone();
+        Task::perform(async move {
+             launcher_installer::install_classicuo_launcher(&install_path).await
+        }, Message::LauncherInstalled)
+    }
 
-             // 2. Fetch Manifest
+    fn step_fetch_manifest(&self) -> Task<Message> {
+        Task::perform(async move {
              let client = reqwest::Client::new();
-             let res = client.get("https://alte-schattenwelt.de/datafiles/checksums.json")
-                .send().await.map_err(|e| e.to_string())?;
-
-             if !res.status().is_success() {
-                 return Err(format!("Manifest fetch failed: {}", res.status()));
-             }
-
+             let res = client.get("https://alte-schattenwelt.de/datafiles/checksums.json").send().await.map_err(|e| e.to_string())?;
              let items: Vec<RemoteManifestItem> = res.json().await.map_err(|e| e.to_string())?;
-
-             let mut official = Manifest::new();
-             let base_url = "https://alte-schattenwelt.de/datafiles/";
-
+             let mut m = Manifest::new();
              for item in items {
-                 official.assets.push(Asset {
-                     path: item.file.clone(),
-                     hash: item.hash,
-                     size: 0, // Unknown from manifest, downloader will handle it
-                     source: AssetSource::Official,
-                     url: format!("{}{}", base_url, item.file),
+                 m.assets.push(Asset {
+                     path: item.file.clone(), hash: item.hash, size: 0,
+                     source: AssetSource::Official, url: format!("https://alte-schattenwelt.de/datafiles/{}", item.file),
                  });
              }
-
-             Ok(official)
+             Ok(m)
          }, Message::ManifestFetched)
     }
 
-    pub fn view(&self) -> iced::Element<'_, Message> {
-        crate::gui::view::view(self)
-    }
-
+    pub fn view(&self) -> iced::Element<'_, Message> { crate::gui::view::view(self) }
     pub fn subscription(&self) -> iced::Subscription<Message> {
-         if let AppState::Patcher(patcher_state) = &self.state {
-             if patcher_state.state == PatcherStep::Downloading && !patcher_state.assets_to_download.is_empty() {
-                  return iced::Subscription::run_with_id(
-                      "download",
-                      downloader::download_assets(
-                          patcher_state.assets_to_download.clone(),
-                          self.config.install_path.clone()
-                      )
-                  );
+         if let AppState::Patcher(p) = &self.state {
+             if p.state == PatcherStep::Downloading && !p.assets_to_download.is_empty() {
+                  return iced::Subscription::run_with_id("dl", downloader::download_assets(p.assets_to_download.clone(), self.config.install_path.clone()));
              }
          }
          iced::Subscription::none()
