@@ -1,5 +1,5 @@
-use iced::widget::{button, column, container, progress_bar, text, scrollable};
-use iced::{Element, Length, Border};
+use iced::widget::{button, column, container, text, scrollable, text_input};
+use iced::{Element, Length, Alignment};
 use crate::core::state::{AppState, InstallerState, PatcherState};
 use crate::core::message::Message;
 use crate::core::installer;
@@ -29,39 +29,64 @@ pub fn view(app: &LauncherApp) -> Element<'_, Message> {
 fn view_installer(state: &InstallerState) -> Element<'_, Message> {
     match state {
         InstallerState::Welcome => {
-            column![
-                text("Willkommen beim Launcher der alten Schattenwelt").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
-                text(format!("Installationspfad: {:?}", installer::get_default_install_path())).color(theme::TEXT_BRIGHT),
+            let content = column![
+                text("Willkommen beim Launcher der alten Schattenwelt")
+                    .size(theme::FONT_SIZE_HEADER)
+                    .color(theme::TEXT_BRIGHT),
+
+                // Selectable Installation Path using TextInput
+                text("Installationspfad:").color(theme::TEXT_MUTED),
+                text_input("", &installer::get_default_install_path().to_string_lossy())
+                    .style(style::transparent_text_input_style)
+                    .width(Length::Fill),
+
                 // In real UI, a text input and "Browse" button would be here.
                 // For now, a button to accept default.
-                button(text("Weiter").color(theme::BACKGROUND))
+                button(text("Weiter").color(theme::BACKGROUND).size(theme::FONT_SIZE_DEFAULT + 2))
                     .style(style::primary_button_style)
+                    .padding(15)
                     .on_press(Message::PathSelected(installer::get_default_install_path().to_string_lossy().to_string()))
-            ].spacing(theme::SPACING_DEFAULT).into()
+            ]
+            .spacing(theme::SPACING_DEFAULT)
+            .align_x(Alignment::Center);
+
+            container(content)
+                .style(style::card_style)
+                .padding(30)
+                .max_width(600)
+                .into()
         }
         InstallerState::Rules => {
-                column![
+            let content = column![
                 text("Server Regeln").size(theme::FONT_SIZE_HEADER).color(theme::TEXT_BRIGHT),
                 container(
                     scrollable(
                         text("1. Seid nett.\n2. Kein Adel.\n3. Habt Spaß.\n\n(Scroll für mehr...)")
-                        .color(theme::TEXT_BRIGHT)
+                        .color(theme::TEXT_MUTED) // Muted text for body
+                        .size(theme::FONT_SIZE_DEFAULT)
                     ).height(200)
-                ).style(|_| container::Style {
-                    background: Some(iced::Background::Color(theme::SURFACE)),
-                    border: Border {
-                        radius: theme::BORDER_RADIUS.into(),
-                        width: 1.0,
-                        color: theme::ACCENT_SECONDARY,
-                    },
-                    ..Default::default()
-                }).padding(10),
-                button(text("Akzeptieren").color(theme::BACKGROUND))
+                ).width(Length::Fill), // No inner style needed, outer card handles it
+
+                button(text("Akzeptieren").color(theme::BACKGROUND).size(theme::FONT_SIZE_DEFAULT + 2))
                     .style(style::primary_button_style)
+                    .padding(15)
                     .on_press(Message::RulesAccepted)
-            ].spacing(theme::SPACING_DEFAULT).into()
+            ]
+            .spacing(theme::SPACING_DEFAULT)
+            .align_x(Alignment::Center);
+
+            container(content)
+                .style(style::card_style)
+                .padding(30)
+                .max_width(600)
+                .into()
         }
-        InstallerState::Setup => text("Verzeichnisse werden erstellt...").color(theme::TEXT_BRIGHT).into(),
+        InstallerState::Setup => {
+            container(text("Verzeichnisse werden erstellt...").color(theme::TEXT_BRIGHT))
+                .style(style::card_style)
+                .padding(30)
+                .into()
+        },
     }
 }
 
