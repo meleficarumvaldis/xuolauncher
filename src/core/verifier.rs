@@ -2,41 +2,40 @@ use crate::core::manifest::{Asset, Manifest};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{Read, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::task;
+use futures::StreamExt;
 
 /// Verifies local files against the manifest.
 /// Returns a list of assets that need to be updated (missing or hash mismatch).
 pub async fn verify_files(base_path: &Path, manifest: &Manifest) -> Vec<Asset> {
-    let mut files_to_update = Vec::new();
     let base_path = base_path.to_owned();
     let assets = manifest.assets.clone();
 
-    // We can run verification in parallel chunks or one by one.
-    // Since it's IO bound and CPU bound (hashing), tokio::spawn_blocking is good.
-    // However, spawning thousands of tasks might be too much.
-    // Let's use a stream or just iterate for now, but ensure hashing is off the main thread.
-
-    // For a cleaner implementation, we'll verify each file.
-    // Ideally we would use something like `futures::stream::iter` with `buffer_unordered`.
-
-    // NOTE: The prompt says "Compare local hashes vs. Manifest hashes to generate a Vec<Asset> of missing/outdated files."
-    // And "Performance: Do not block the UI thread! Use tokio::fs or tokio::task::spawn_blocking for hashing large files."
-
-    for asset in assets {
+    // Create a stream of futures, each verifying one file.
+    let tasks = futures::stream::iter(assets.into_iter().map(move |asset| {
         let path = base_path.join(&asset.path);
         let expected_hash = asset.hash.clone();
 
-        let needs_update = task::spawn_blocking(move || {
-            should_update_file(&path, &expected_hash)
-        }).await.unwrap_or(true); // If task fails (panic), assume update needed.
+        async move {
+            let needs_update = task::spawn_blocking(move || {
+                should_update_file(&path, &expected_hash)
+            }).await.unwrap_or(true);
 
-        if needs_update {
-            files_to_update.push(asset);
+            if needs_update {
+                Some(asset)
+            } else {
+                None
+            }
         }
-    }
+    }));
 
-    files_to_update
+    // Run up to 16 verifications in parallel.
+    // Adjust concurrency based on typical IO/CPU balance.
+    // Hashing is CPU intensive, reading is IO.
+    let results: Vec<Option<Asset>> = tasks.buffer_unordered(16).collect().await;
+
+    results.into_iter().filter_map(|x| x).collect()
 }
 
 /// Checks if a file needs updating by comparing SHA256 hash.
@@ -55,7 +54,7 @@ fn calculate_sha256(path: &Path) -> std::io::Result<String> {
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
-    let mut buffer = [0; 8192];
+    let mut buffer = [0; 32 * 1024]; // Increased buffer size to 32KB for better read performance
 
     loop {
         let count = reader.read(&mut buffer)?;

@@ -7,10 +7,16 @@ pub enum Message {
     Loaded(Result<LauncherConfig, String>),
 
     // Installer Interactions
+    InstallerNextStep, // Moves to next step
     PathSelected(String),
     RulesAccepted,
     InstallStarted,
     InstallComplete(Result<(), String>),
+
+    // Options
+    CheckForUpdates,
+    UpdateChecked(Result<Option<String>, String>), // Ok(Some(version)) if update available
+    PerformUpdate,
 
     // Patcher
     ManifestFetched(Result<Manifest, String>),

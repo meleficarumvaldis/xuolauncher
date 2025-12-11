@@ -19,8 +19,26 @@ impl Default for AppState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstallerState {
     Welcome,
-    Rules,
+    DefinePath,
+    Options(OptionsState), // Modified: Options screen with state
     Setup, // Performing directory creation
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OptionsState {
+    pub checking_update: bool,
+    pub update_available: bool,
+    pub new_version: Option<String>,
+}
+
+impl Default for OptionsState {
+    fn default() -> Self {
+        Self {
+            checking_update: false,
+            update_available: false,
+            new_version: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
