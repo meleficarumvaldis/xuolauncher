@@ -1,7 +1,7 @@
 use crate::core::manifest::Asset;
 use crate::core::message::Message;
 use futures::StreamExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
@@ -41,7 +41,7 @@ pub fn download_assets(
                  }
                  Err(e) => {
                      let mut tx = tx.clone();
-                     use futures::SinkExt;
+
                      let _ = tx.start_send(Message::PatchError(format!("Download failed: {}", e)));
                      return;
                  }

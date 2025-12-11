@@ -1,12 +1,12 @@
 use iced::widget::{column, container, progress_bar, row, text, text_input, vertical_space};
-use iced::{Alignment, Element, Length, Color};
+use iced::{Alignment, Element, Length};
 
 use crate::core::message::Message;
 use crate::core::state::{PatcherState, PatcherStep};
 use crate::gui::theme;
 use crate::gui::style;
 
-pub fn view(state: &PatcherState) -> Element<Message> {
+pub fn view(state: &PatcherState) -> Element<'_, Message> {
     let title = text("Updating Game Client")
         .size(theme::FONT_SIZE_HEADER)
         .color(theme::TEXT_BRIGHT);

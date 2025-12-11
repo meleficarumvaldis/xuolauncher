@@ -1,5 +1,4 @@
-use crate::core::manifest::{Asset, Manifest};
-use serde::{Deserialize, Serialize};
+use crate::core::manifest::Asset;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppState {

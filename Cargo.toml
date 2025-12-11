@@ -26,6 +26,7 @@ hex = "0.4" # For converting hash to string
 # System Integration
 directories = "5.0"
 open = "5.1" # Useful for opening links/folders
+zip = "6.0.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2" # Might be needed for advanced permissions if std is not enough, but std::os::unix is usually fine.
