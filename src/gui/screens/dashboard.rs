@@ -59,21 +59,20 @@ pub fn view() -> Element<'static, Message> {
     let footer = row![
         button(text("Discord").color(theme::TEXT_BRIGHT))
             .style(style::secondary_button_style)
-            .on_press(Message::Tick) // Dummy action
+            .on_press(Message::OpenLink("https://discord.gg/5DqQMZ8W".to_string()))
+            .padding(10),
+        button(text("Registrieren").color(theme::TEXT_BRIGHT))
+            .style(style::secondary_button_style)
+            .on_press(Message::OpenLink("https://alte-schattenwelt.de/register".to_string()))
             .padding(10),
         button(text("Wiki").color(theme::TEXT_BRIGHT))
             .style(style::secondary_button_style)
-            .on_press(Message::Tick)
-            .padding(10),
-        button(text("Website").color(theme::TEXT_BRIGHT))
-            .style(style::secondary_button_style)
-            .on_press(Message::Tick)
+            .on_press(Message::OpenLink("https://wiki.alte-schattenwelt.de".to_string())) // Guessing wiki link or keep generic for now if unknown
             .padding(10),
     ]
     .spacing(theme::SPACING_DEFAULT)
     .align_y(Alignment::Center)
-    .width(Length::Fill)
-    .align_x(Alignment::Center); // Center the row content if container allows
+    .width(Length::Fill);
 
     let content = column![
         status_card,

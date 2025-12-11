@@ -34,4 +34,5 @@ pub enum Message {
     // General
     ErrorOccurred(String),
     Tick,
+    OpenLink(String),
 }

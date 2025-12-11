@@ -3,8 +3,15 @@ use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep};
 use crate::core::config::LauncherConfig;
 use crate::core::message::Message;
 use crate::core::manifest::{Manifest, Asset, AssetSource};
-use crate::core::{installer, launcher, verifier};
+use crate::core::{installer, launcher, verifier, launcher_installer};
 use crate::net::downloader;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct RemoteManifestItem {
+    file: String,
+    hash: String,
+}
 
 pub struct LauncherApp {
     pub state: AppState,
@@ -170,6 +177,9 @@ impl LauncherApp {
             Message::GameLaunched(Ok(_)) => {
                 self.state = AppState::ReadyToPlay;
             }
+            Message::OpenLink(url) => {
+                 let _ = open::that(url);
+            }
             // ... handle other messages
             _ => {}
         }
@@ -177,38 +187,42 @@ impl LauncherApp {
     }
 
     fn start_patching(&self) -> Task<Message> {
-         // Mock fetching manifest for now
-         Task::perform(async {
-             // Simulate "official_manifest.json" and "custom_manifest.json"
-             // Since we are mocking, we will just construct a manifest with a few test assets.
-             // In production, this would use `reqwest` to fetch JSON from a URL.
+         let install_path = self.config.install_path.clone();
+         Task::perform(async move {
+             // 1. Install ClassicUO Launcher if missing
+             if let Err(e) = launcher_installer::install_classicuo_launcher(&install_path).await {
+                 return Err(format!("ClassicUO Launcher Install Failed: {}", e));
+             }
+
+             // 2. Fetch Manifest
+             let client = reqwest::Client::new();
+             let res = client.get("https://alte-schattenwelt.de/datafiles/checksums.json")
+                .send().await.map_err(|e| e.to_string())?;
+
+             if !res.status().is_success() {
+                 return Err(format!("Manifest fetch failed: {}", res.status()));
+             }
+
+             let items: Vec<RemoteManifestItem> = res.json().await.map_err(|e| e.to_string())?;
 
              let mut official = Manifest::new();
-             // Add a fake asset that definitely won't match local to trigger download
-             official.assets.push(Asset {
-                 path: "test_asset.txt".to_string(),
-                 hash: "dummy_hash".to_string(), // Will mismatch
-                 size: 1024,
-                 source: AssetSource::Official,
-                 url: "https://httpbin.org/bytes/1024".to_string(), // Use httpbin to simulate download
-             });
+             let base_url = "https://alte-schattenwelt.de/datafiles/";
 
-             let mut custom = Manifest::new();
-             custom.assets.push(Asset {
-                 path: "custom_asset.txt".to_string(),
-                 hash: "custom_hash".to_string(),
-                 size: 2048,
-                 source: AssetSource::Custom,
-                 url: "https://httpbin.org/bytes/2048".to_string(),
-             });
-
-             official.merge(custom);
+             for item in items {
+                 official.assets.push(Asset {
+                     path: item.file.clone(),
+                     hash: item.hash,
+                     size: 0, // Unknown from manifest, downloader will handle it
+                     source: AssetSource::Official,
+                     url: format!("{}{}", base_url, item.file),
+                 });
+             }
 
              Ok(official)
          }, Message::ManifestFetched)
     }
 
-    pub fn view(&self) -> iced::Element<Message> {
+    pub fn view(&self) -> iced::Element<'_, Message> {
         crate::gui::view::view(self)
     }
 
