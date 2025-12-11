@@ -1,9 +1,9 @@
 use iced::{Task};
-use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep};
+use crate::core::state::{AppState, InstallerState, PatcherState, PatcherStep, OptionsState};
 use crate::core::config::LauncherConfig;
 use crate::core::message::Message;
 use crate::core::manifest::{Manifest, Asset, AssetSource};
-use crate::core::{installer, launcher, verifier, launcher_installer};
+use crate::core::{installer, launcher, verifier, launcher_installer, self_update};
 use crate::net::downloader;
 use serde::Deserialize;
 
@@ -11,6 +11,12 @@ use serde::Deserialize;
 struct RemoteManifestItem {
     file: String,
     hash: String,
+}
+
+#[derive(Deserialize)]
+struct RemoteVersion {
+    version: String,
+    url: String,
 }
 
 pub struct LauncherApp {
@@ -61,11 +67,76 @@ impl LauncherApp {
                  self.state = AppState::Installer(InstallerState::Welcome);
                  self.config.install_path = installer::get_default_install_path();
             }
+            // --- Installer Flow ---
+            Message::InstallerNextStep => {
+                match &self.state {
+                    AppState::Installer(InstallerState::Welcome) => {
+                        self.state = AppState::Installer(InstallerState::DefinePath);
+                    }
+                    AppState::Installer(InstallerState::DefinePath) => {
+                         // Default Options state
+                        self.state = AppState::Installer(InstallerState::Options(OptionsState::default()));
+                    }
+                     // Options -> InstallStarted handled below
+                    _ => {}
+                }
+            }
             Message::PathSelected(path_str) => {
                 self.config.install_path = std::path::PathBuf::from(path_str);
-                self.state = AppState::Installer(InstallerState::Rules);
             }
-            Message::RulesAccepted => {
+            Message::CheckForUpdates => {
+                if let AppState::Installer(InstallerState::Options(ref mut opts)) = self.state {
+                    opts.checking_update = true;
+                }
+                // NOTE: Replace with actual version URL
+                let version_url = "https://alte-schattenwelt.de/launcher/version.json".to_string();
+                return Task::perform(async move {
+                    let client = reqwest::Client::new();
+                    match client.get(&version_url).send().await {
+                        Ok(resp) => {
+                            if resp.status().is_success() {
+                                match resp.json::<RemoteVersion>().await {
+                                    Ok(remote) => Ok(Some(remote.version)), // Return version string
+                                    Err(e) => Err(format!("Parse error: {}", e))
+                                }
+                            } else {
+                                Err(format!("Status: {}", resp.status()))
+                            }
+                        },
+                        Err(e) => Err(e.to_string())
+                    }
+                }, Message::UpdateChecked);
+            }
+            Message::UpdateChecked(result) => {
+                 if let AppState::Installer(InstallerState::Options(ref mut opts)) = self.state {
+                    opts.checking_update = false;
+                    match result {
+                        Ok(Some(version)) => {
+                             let current = env!("CARGO_PKG_VERSION");
+                             if version != current { // Simple string comparison or semver
+                                 opts.update_available = true;
+                                 opts.new_version = Some(version);
+                             } else {
+                                 opts.update_available = false;
+                             }
+                        }
+                        Ok(None) => opts.update_available = false,
+                        Err(_) => opts.update_available = false, // Ignore errors for UI simplicity or handle them
+                    }
+                }
+            }
+            Message::PerformUpdate => {
+                 let version_url = "https://alte-schattenwelt.de/launcher/version.json".to_string();
+                 return Task::perform(async move {
+                      // This function exits the process on success, so we might not get a result back if successful.
+                      // But if it fails, we get an error.
+                      self_update::check_and_apply_self_update(&version_url).await
+                 }, |res| match res {
+                     Ok(_) => Message::Tick, // Should not happen if exit(0) called
+                     Err(e) => Message::ErrorOccurred(e),
+                 });
+            }
+            Message::InstallStarted => {
                 let path = self.config.install_path.clone();
                 self.state = AppState::Installer(InstallerState::Setup);
                 return Task::perform(installer::run_first_setup(path), |res| {
@@ -77,6 +148,9 @@ impl LauncherApp {
             }
             Message::InstallComplete(Ok(_)) => {
                 self.config.setup_completed = true;
+                 // Save config
+                let _ = self.config.save_to_path(&installer::get_default_install_path());
+
                 self.state = AppState::Patcher(PatcherState::default());
                 return self.start_patching();
             }
