@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use directories::UserDirs;
 use crate::core::config::LauncherConfig;
 
-pub const SHARD_NAME: &str = "MyShardName";
+pub const SHARD_NAME: &str = "alteschattenwelt";
 
 pub fn get_default_install_path() -> PathBuf {
     if let Some(user_dirs) = UserDirs::new() {
